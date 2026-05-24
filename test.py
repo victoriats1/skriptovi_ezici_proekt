@@ -5,8 +5,9 @@ import datetime
 from main import add_event, get_events_for_user, delete_event, find_free_slots
 from notifications import notify_users, get_notifications, mark_as_read
 
-cred = credentials.Certificate("firebase_key.json")
-firebase_admin.initialize_app(cred)
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_key.json")
+    firebase_admin.initialize_app(cred)
 
 USERS = ["Alex", "Maria"]
 
