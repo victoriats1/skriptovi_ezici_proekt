@@ -52,7 +52,7 @@ def main(page: ft.Page):
             events_list.controls.append(
                 ft.Row([
                     ft.Text(f"{ev['date']}  {ev['start_time']}–{ev['end_time']}  {ev['title']}", size=14),
-                    ft.IconButton(ft.icons.DELETE, on_click=make_delete(ev["id"], ev["title"]))
+                    ft.IconButton("delete", on_click=make_delete(ev["id"], ev["title"]))
                 ])
             )
         page.update()
