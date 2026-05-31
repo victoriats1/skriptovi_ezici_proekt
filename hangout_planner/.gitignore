@@ -1,1 +1,24 @@
-firebase_key.json
+# Тайни ключове - никога в git!
+.env
+firebase/firebase_key.json
+*_key.json
+ 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+ 
+# Flask
+instance/
+.flask_session/
+ 
+# IDE
+.vscode/
+.idea/
+ 
+# OS
+.DS_Store
+Thumbs.db
