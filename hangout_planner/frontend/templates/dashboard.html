@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — Hangout Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../static/css/styles.css">
+  <link rel="stylesheet" href="../static/css/calendar.css">
+</head>
+<body class="page-dashboard">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo-mark small">HP</div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="groups.html" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Groups</span>
+        </a>
+        <a href="#" class="nav-item" id="calendarNavLink">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Calendar</span>
+        </a>
+        <a href="#" class="nav-item" id="notificationsNavLink">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span>Alerts</span>
+          <span class="nav-badge" id="navBadge" style="display:none">0</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="sidebar-btn" id="syncCalBtn" onclick="syncGoogleCalendar()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.52"/></svg>
+        Sync Calendar
+      </button>
+      <div class="user-chip" id="userChip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <span class="user-name" id="userName">Loading…</span>
+          <span class="user-email" id="userEmail"></span>
+        </div>
+        <button class="sign-out-btn" onclick="signOut()" title="Sign out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-heading">Your Dashboard</h2>
+        <p class="page-sub" id="dateToday"></p>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-outline btn-sm" onclick="document.getElementById('findSlotModal').classList.add('open')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Find Free Slot
+        </button>
+        <button class="btn-primary btn-sm" onclick="document.getElementById('addEventModal').classList.add('open')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Event
+        </button>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+
+      <!-- Calendar widget -->
+      <section class="card card-calendar">
+        <div class="card-header">
+          <h3 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            My Calendar
+          </h3>
+          <div class="cal-nav">
+            <button class="icon-btn" id="prevMonthBtn" onclick="changeMonth(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="cal-month-label" id="calMonthLabel"></span>
+            <button class="icon-btn" id="nextMonthBtn" onclick="changeMonth(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="calendar-wrap" id="calendarWrap">
+          <!-- Built by calendar.js -->
+        </div>
+      </section>
+
+      <!-- Upcoming events -->
+      <section class="card card-events">
+        <div class="card-header">
+          <h3 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Upcoming Events
+          </h3>
+          <button class="text-btn" onclick="loadEvents()">Refresh</button>
+        </div>
+        <ul class="events-list" id="eventsList">
+          <li class="event-skeleton"></li>
+          <li class="event-skeleton"></li>
+          <li class="event-skeleton"></li>
+        </ul>
+      </section>
+
+      <!-- Free slots card -->
+      <section class="card card-slots">
+        <div class="card-header">
+          <h3 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Free Slots This Week
+          </h3>
+          <span class="card-badge" id="slotCount">—</span>
+        </div>
+        <p class="slots-hint">Comparing your calendar with your groups</p>
+        <ul class="slots-list" id="slotsList">
+          <li class="slot-skeleton"></li>
+          <li class="slot-skeleton"></li>
+        </ul>
+        <button class="btn-outline btn-block" onclick="document.getElementById('findSlotModal').classList.add('open')">
+          Find more slots →
+        </button>
+      </section>
+
+      <!-- Notifications card -->
+      <section class="card card-notifications">
+        <div class="card-header">
+          <h3 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Recent Alerts
+          </h3>
+          <button class="text-btn" id="markAllRead" onclick="markAllNotificationsRead()">Mark all read</button>
+        </div>
+        <ul class="notif-list" id="notifList">
+          <li class="notif-empty">No new alerts</li>
+        </ul>
+      </section>
+
+      <!-- Groups mini card -->
+      <section class="card card-groups-mini">
+        <div class="card-header">
+          <h3 class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            My Groups
+          </h3>
+          <a href="groups.html" class="text-btn">View all →</a>
+        </div>
+        <ul class="groups-mini-list" id="groupsMiniList">
+          <li class="group-mini-empty">No groups yet. <a href="groups.html">Create one</a></li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODALS ═══════════════ -->
+
+  <!-- Add Event Modal -->
+  <div class="modal-backdrop" id="addEventModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">New Event</h3>
+        <button class="modal-close" onclick="closeModal('addEventModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label class="field-label">Title</label>
+          <input class="field-input" type="text" id="evtTitle" placeholder="Dinner with friends"/>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Date</label>
+            <input class="field-input" type="date" id="evtDate"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Start</label>
+            <input class="field-input" type="time" id="evtStart"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">End</label>
+            <input class="field-input" type="time" id="evtEnd"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Notes (optional)</label>
+          <textarea class="field-input" id="evtNotes" rows="2" placeholder="Any details…"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Color</label>
+          <div class="color-picker" id="evtColorPicker">
+            <button class="color-swatch active" style="background:#6C9CF5" data-color="#6C9CF5"></button>
+            <button class="color-swatch" style="background:#F5A623" data-color="#F5A623"></button>
+            <button class="color-swatch" style="background:#7ED321" data-color="#7ED321"></button>
+            <button class="color-swatch" style="background:#E040FB" data-color="#E040FB"></button>
+            <button class="color-swatch" style="background:#FF6B6B" data-color="#FF6B6B"></button>
+            <button class="color-swatch" style="background:#4DB6AC" data-color="#4DB6AC"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('addEventModal')">Cancel</button>
+        <button class="btn-primary" onclick="addEvent()">Save Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Find Slot Modal -->
+  <div class="modal-backdrop" id="findSlotModal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 class="modal-title">Find a Free Slot</h3>
+        <button class="modal-close" onclick="closeModal('findSlotModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">From</label>
+            <input class="field-input" type="date" id="slotFrom"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">To</label>
+            <input class="field-input" type="date" id="slotTo"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Duration (min)</label>
+            <select class="field-input" id="slotDuration">
+              <option value="30">30 min</option>
+              <option value="60" selected>1 hour</option>
+              <option value="90">1.5 hours</option>
+              <option value="120">2 hours</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Include group</label>
+          <select class="field-input" id="slotGroup">
+            <option value="">Just me</option>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="slots-results" id="slotsResults">
+          <p class="slots-prompt">Hit "Search" to find free time →</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('findSlotModal')">Cancel</button>
+        <button class="btn-primary" onclick="findFreeSlots()">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="../static/js/firebase-init.js"></script>
+  <script src="../static/js/auth.js"></script>
+  <script src="../static/js/calendar.js"></script>
+  <script src="../static/js/notify.js"></script>
+</body>
+</html>
