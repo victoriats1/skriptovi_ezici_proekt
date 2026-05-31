@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Groups — Hangout Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../static/css/styles.css">
+  <link rel="stylesheet" href="../static/css/calendar.css">
+</head>
+<body class="page-dashboard">
+
+  <!-- Sidebar (same as dashboard) -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo-mark small">HP</div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="groups.html" class="nav-item active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Groups</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Calendar</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span>Alerts</span>
+          <span class="nav-badge" id="navBadge" style="display:none">0</span>
+        </a>
+      </nav>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="sidebar-btn" onclick="syncGoogleCalendar()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.52"/></svg>
+        Sync Calendar
+      </button>
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <span class="user-name" id="userName">Loading…</span>
+          <span class="user-email" id="userEmail"></span>
+        </div>
+        <button class="sign-out-btn" onclick="signOut()" title="Sign out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 class="page-heading">Groups</h2>
+        <p class="page-sub">Coordinate with the people you want to hang out with</p>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-primary btn-sm" onclick="document.getElementById('createGroupModal').classList.add('open')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Group
+        </button>
+      </div>
+    </header>
+
+    <div class="groups-layout">
+
+      <!-- Groups list panel -->
+      <div class="groups-panel">
+        <div class="search-bar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" placeholder="Search groups…" id="groupSearch" oninput="filterGroups(this.value)"/>
+        </div>
+
+        <ul class="group-list" id="groupList">
+          <!-- Populated by JS -->
+          <li class="group-empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <p>No groups yet</p>
+            <button class="btn-outline btn-sm" onclick="document.getElementById('createGroupModal').classList.add('open')">Create your first</button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Group detail panel -->
+      <div class="group-detail" id="groupDetail">
+
+        <!-- Empty state -->
+        <div class="group-detail-empty" id="groupDetailEmpty">
+          <div class="empty-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3>Select a group</h3>
+          <p>Pick a group from the left to see members, shared free slots, and upcoming hangouts.</p>
+        </div>
+
+        <!-- Detail content (shown when group selected) -->
+        <div class="group-detail-content hidden" id="groupDetailContent">
+
+          <!-- Group header -->
+          <div class="group-detail-header">
+            <div class="group-avatar-lg" id="detailGroupEmoji">🎉</div>
+            <div class="group-header-info">
+              <h2 class="group-detail-name" id="detailGroupName">Group Name</h2>
+              <p class="group-detail-meta" id="detailGroupMeta">0 members</p>
+            </div>
+            <div class="group-header-actions">
+              <button class="btn-outline btn-sm" onclick="openFindSlotForGroup()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Find Free Slot
+              </button>
+              <button class="btn-ghost btn-sm icon-only" onclick="openGroupSettings()" title="Settings">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="detail-tabs">
+            <button class="detail-tab active" data-tab="members" onclick="switchDetailTab('members', this)">Members</button>
+            <button class="detail-tab" data-tab="slots" onclick="switchDetailTab('slots', this)">Free Slots</button>
+            <button class="detail-tab" data-tab="hangouts" onclick="switchDetailTab('hangouts', this)">Hangouts</button>
+          </div>
+
+          <!-- Members tab -->
+          <div class="detail-panel" id="tab-members">
+            <div class="member-actions">
+              <button class="btn-outline btn-sm" onclick="document.getElementById('inviteMemberModal').classList.add('open')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Invite member
+              </button>
+            </div>
+            <ul class="member-list" id="memberList">
+              <!-- Populated by JS -->
+            </ul>
+          </div>
+
+          <!-- Free Slots tab -->
+          <div class="detail-panel hidden" id="tab-slots">
+            <div class="slots-filter">
+              <input class="field-input field-sm" type="date" id="slotFilterFrom" onchange="loadGroupSlots()"/>
+              <span class="filter-sep">→</span>
+              <input class="field-input field-sm" type="date" id="slotFilterTo" onchange="loadGroupSlots()"/>
+              <select class="field-input field-sm" id="slotFilterDur" onchange="loadGroupSlots()">
+                <option value="30">30 min+</option>
+                <option value="60" selected>1 hour+</option>
+                <option value="120">2 hours+</option>
+              </select>
+            </div>
+            <div class="group-availability-grid" id="availabilityGrid">
+              <!-- Horizontal timeline of who is free when -->
+            </div>
+            <ul class="slots-list expanded" id="groupSlotsList">
+              <li class="slots-prompt">Set a date range above and click a slot to plan a hangout.</li>
+            </ul>
+          </div>
+
+          <!-- Hangouts tab -->
+          <div class="detail-panel hidden" id="tab-hangouts">
+            <button class="btn-outline btn-sm mb-8" onclick="document.getElementById('scheduleHangoutModal').classList.add('open')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Schedule hangout
+            </button>
+            <ul class="hangout-list" id="hangoutList">
+              <li class="hangout-empty">No hangouts scheduled yet.</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODALS ═══════════════ -->
+
+  <!-- Create Group Modal -->
+  <div class="modal-backdrop" id="createGroupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Group</h3>
+        <button class="modal-close" onclick="closeModal('createGroupModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="emoji-picker-row">
+          <button class="emoji-btn" id="groupEmojiBtn" onclick="cycleEmoji()">🎉</button>
+          <div class="field-group flex-1">
+            <label class="field-label">Group name</label>
+            <input class="field-input" type="text" id="newGroupName" placeholder="Weekend crew, Book club…"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Description (optional)</label>
+          <input class="field-input" type="text" id="newGroupDesc" placeholder="What's this group for?"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Invite by email</label>
+          <div class="tag-input-wrap" id="inviteTagsWrap">
+            <input class="tag-input" type="email" id="inviteEmailInput" placeholder="friend@example.com" onkeydown="handleInviteKey(event)"/>
+          </div>
+          <p class="field-hint">Press Enter or comma to add multiple emails</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('createGroupModal')">Cancel</button>
+        <button class="btn-primary" onclick="createGroup()">Create Group</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invite Member Modal -->
+  <div class="modal-backdrop" id="inviteMemberModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">Invite Member</h3>
+        <button class="modal-close" onclick="closeModal('inviteMemberModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label class="field-label">Email address</label>
+          <input class="field-input" type="email" id="singleInviteEmail" placeholder="friend@example.com"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('inviteMemberModal')">Cancel</button>
+        <button class="btn-primary" onclick="inviteMember()">Send Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Hangout Modal -->
+  <div class="modal-backdrop" id="scheduleHangoutModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Schedule Hangout</h3>
+        <button class="modal-close" onclick="closeModal('scheduleHangoutModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label class="field-label">Title</label>
+          <input class="field-input" type="text" id="hangoutTitle" placeholder="Friday dinner, Movie night…"/>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Date</label>
+            <input class="field-input" type="date" id="hangoutDate"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Start</label>
+            <input class="field-input" type="time" id="hangoutStart"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">End</label>
+            <input class="field-input" type="time" id="hangoutEnd"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Location (optional)</label>
+          <input class="field-input" type="text" id="hangoutLocation" placeholder="Park, Coffee shop, Zoom…"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Notes</label>
+          <textarea class="field-input" id="hangoutNotes" rows="2" placeholder="Bring snacks, BYOB…"></textarea>
+        </div>
+        <div class="notify-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="hangoutNotify" checked/>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            Notify all members
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('scheduleHangoutModal')">Cancel</button>
+        <button class="btn-primary" onclick="scheduleHangout()">Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="../static/js/firebase-init.js"></script>
+  <script src="../static/js/auth.js"></script>
+  <script src="../static/js/notify.js"></script>
+  <script src="../static/js/groups.js"></script>
+</body>
+</html>
