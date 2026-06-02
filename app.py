@@ -3,7 +3,9 @@ from flask import Flask, render_template, session, redirect
 from dotenv import load_dotenv
 from backend.firebase_config import init_firebase
 from backend.routes.auth_routes import auth_bp
-from backend.routes.calendar_routes import calendar_bp  # добави
+from backend.routes.calendar_routes import calendar_bp
+from backend.routes.group_routes import group_bp
+from backend.routes.notify_routes import notify_bp
 
 load_dotenv()
 
@@ -16,7 +18,9 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-smeni-tova")
 
 init_firebase()
 app.register_blueprint(auth_bp)
-app.register_blueprint(calendar_bp)  # добави
+app.register_blueprint(calendar_bp)
+app.register_blueprint(group_bp)
+app.register_blueprint(notify_bp)
 
 
 @app.route("/")
