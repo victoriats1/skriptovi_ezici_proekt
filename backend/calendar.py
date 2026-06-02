@@ -1,24 +1,19 @@
-from googleapiclient.discovery import build
+﻿from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 
 def get_calendar_service(access_token):
-    """Създава Google Calendar API клиент с access token."""
     creds = Credentials(token=access_token)
     service = build("calendar", "v3", credentials=creds)
     return service
 
 
 def get_events(access_token, days_ahead=7):
-    """
-    Връща събитията от основния календар за следващите N дни.
-    """
     service = get_calendar_service(access_token)
-
     now = datetime.now(timezone.utc)
     time_min = now.isoformat()
-    time_max = now.replace(day=now.day + days_ahead).isoformat()
+    time_max = (now + timedelta(days=days_ahead)).isoformat()
 
     events_result = service.events().list(
         calendarId="primary",
@@ -29,7 +24,6 @@ def get_events(access_token, days_ahead=7):
     ).execute()
 
     events = events_result.get("items", [])
-
     result = []
     for event in events:
         start = event["start"].get("dateTime", event["start"].get("date"))
@@ -40,21 +34,16 @@ def get_events(access_token, days_ahead=7):
             "start": start,
             "end": end,
         })
-
     return result
 
 
 def get_busy_intervals(access_token, days_ahead=7):
-    """
-    Връща само заетите интервали (start, end) за следващите N дни.
-    Използва се от free_slots.py за намиране на свободни часове.
-    """
     events = get_events(access_token, days_ahead)
     busy = []
     for event in events:
         start = event["start"]
         end = event["end"]
-        if "T" in start:  # само events с точен час, не целодневни
+        if "T" in start:
             busy.append({
                 "start": datetime.fromisoformat(start),
                 "end": datetime.fromisoformat(end),
