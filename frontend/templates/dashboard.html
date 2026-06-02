@@ -24,11 +24,11 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Групи</span>
         </a>
-        <a href="#" class="nav-item">
+        <a href="#" class="nav-item" onclick="openCalendarModal(); return false;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>Календар</span>
         </a>
-        <a href="#" class="nav-item">
+        <a href="#" class="nav-item" onclick="openNotifModal(); return false;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span>Известия</span>
           <span class="nav-badge" id="navBadge" style="display:none">0</span>
@@ -253,6 +253,57 @@
     </div>
   </div>
 
+  <!-- Модал — Календар -->
+  <div class="modal-backdrop" id="calendarModal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 class="modal-title">Календар</h3>
+        <button class="modal-close" onclick="closeModal('calendarModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="cal-nav" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;">
+          <button class="icon-btn" onclick="changeMonth(-1)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="cal-month-label" id="calMonthLabel2" style="font-size:16px;font-weight:500;min-width:140px;text-align:center;"></span>
+          <button class="icon-btn" onclick="changeMonth(1)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="calendar-wrap" id="calendarWrapModal"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal('calendarModal')">Затвори</button>
+        <button class="btn-primary" onclick="closeModal('calendarModal'); document.getElementById('addEventModal').classList.add('open')">
+          + Ново събитие
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модал — Известия -->
+  <div class="modal-backdrop" id="notifModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Известия</h3>
+        <button class="modal-close" onclick="closeModal('notifModal')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <ul class="notif-list" id="notifListModal">
+          <li class="notif-empty">Няма нови известия</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="markAllNotificationsRead(); closeModal('notifModal')">Маркирай всички</button>
+        <button class="btn-primary" onclick="closeModal('notifModal')">Затвори</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -262,5 +313,30 @@
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/calendar.js"></script>
   <script src="/static/js/notify.js"></script>
+  <script>
+    function openCalendarModal() {
+      document.getElementById('calendarModal').classList.add('open');
+      renderCalendarInModal();
+    }
+
+    function openNotifModal() {
+      document.getElementById('notifModal').classList.add('open');
+      // Копира известията от таблото в модала
+      const src  = document.getElementById('notifList');
+      const dest = document.getElementById('notifListModal');
+      if (src && dest) dest.innerHTML = src.innerHTML;
+    }
+
+    function renderCalendarInModal() {
+      const wrap  = document.getElementById('calendarWrapModal');
+      const label = document.getElementById('calMonthLabel2');
+      if (!wrap) return;
+      // Използва същата renderCalendar логика но в модала
+      const mainWrap  = document.getElementById('calendarWrap');
+      const mainLabel = document.getElementById('calMonthLabel');
+      if (mainWrap)  wrap.innerHTML  = mainWrap.innerHTML;
+      if (mainLabel && label) label.textContent = mainLabel.textContent;
+    }
+  </script>
 </body>
 </html>
