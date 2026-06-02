@@ -11,10 +11,6 @@ const MONTHS = [
   'Юли','Август','Септември','Октомври','Ноември','Декември'
 ];
 
-/* ══════════════════════════════════════
-   КАЛЕНДАР — РЕНДЕР
-   ══════════════════════════════════════ */
-
 function renderCalendar() {
   const wrap  = document.getElementById('calendarWrap');
   const label = document.getElementById('calMonthLabel');
@@ -94,21 +90,16 @@ function dateKey(y, m, d) {
   return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
-/* ══════════════════════════════════════
-   ЗАРЕДИ СЪБИТИЯ ОТ BACKEND
-   ══════════════════════════════════════ */
-
 async function loadEvents() {
   const list = document.getElementById('eventsList');
   if (list) list.innerHTML = '<li class="event-skeleton"></li><li class="event-skeleton"></li><li class="event-skeleton"></li>';
 
   try {
-    const res  = await fetch('/calendar/events');
+    const res = await fetch('/calendar/events');
     if (!res.ok) throw new Error('Неуспешно зареждане');
     const data = await res.json();
     const events = data.events || [];
 
-    // Попълни кеша за календара
     eventsCache = {};
     events.forEach(evt => {
       const date = new Date(evt.start);
@@ -151,10 +142,6 @@ function renderEventsList(events) {
   }).join('');
 }
 
-/* ══════════════════════════════════════
-   СВОБОДНИ ЧАСОВЕ
-   ══════════════════════════════════════ */
-
 async function loadWeekFreeSlots() {
   const slotsList = document.getElementById('slotsList');
   const slotCount = document.getElementById('slotCount');
@@ -163,12 +150,10 @@ async function loadWeekFreeSlots() {
   slotsList.innerHTML = '<li class="slot-skeleton"></li><li class="slot-skeleton"></li>';
 
   try {
-    const res  = await fetch('/calendar/busy');
+    const res = await fetch('/calendar/busy');
     if (!res.ok) throw new Error('Неуспешно');
     const data = await res.json();
     const busy = data.busy || [];
-
-    // Изчисли свободните часове от заетите
     const slots = calcFreeSlots(busy);
 
     if (slotCount) slotCount.textContent = slots.length;
@@ -199,7 +184,6 @@ async function loadWeekFreeSlots() {
   }
 }
 
-// Изчислява свободните часове между заетите интервали (9:00 - 21:00)
 function calcFreeSlots(busyIntervals) {
   const slots = [];
   const now   = new Date();
@@ -235,10 +219,6 @@ function calcFreeSlots(busyIntervals) {
   return slots;
 }
 
-/* ══════════════════════════════════════
-   ЗАПАЗИ НОВО СЪБИТИЕ
-   ══════════════════════════════════════ */
-
 async function addEvent() {
   const title = document.getElementById('evtTitle').value.trim();
   const date  = document.getElementById('evtDate').value;
@@ -264,10 +244,14 @@ async function addEvent() {
       })
     });
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Грешка при запазване');
+    // Провери дали отговорът е JSON преди да го парсва
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Запазването не е готово от backend-а.');
     }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка при запазване');
 
     closeModal('addEventModal');
     showToast('Събитието е запазено!', 'success');
@@ -276,10 +260,6 @@ async function addEvent() {
     showToast(err.message, 'error');
   }
 }
-
-/* ══════════════════════════════════════
-   НАМЕРИ СВОБОДЕН ЧАС (модал)
-   ══════════════════════════════════════ */
 
 async function findFreeSlots() {
   const from     = document.getElementById('slotFrom').value;
@@ -292,7 +272,7 @@ async function findFreeSlots() {
   results.innerHTML = `<div class="cal-loading"><div class="cal-spinner"></div> Търси се…</div>`;
 
   try {
-    const res  = await fetch(`/calendar/busy`);
+    const res  = await fetch('/calendar/busy');
     if (!res.ok) throw new Error('Неуспешно');
     const data = await res.json();
     const busy = data.busy || [];
@@ -335,17 +315,13 @@ async function findFreeSlots() {
 }
 
 function pickSlot(start, end) {
-  const d  = new Date(start);
-  const e  = new Date(end);
+  const d = new Date(start);
+  const e = new Date(end);
   document.getElementById('evtDate').value  = d.toISOString().slice(0, 10);
   document.getElementById('evtStart').value = fmtTime24(d);
   document.getElementById('evtEnd').value   = fmtTime24(e);
   document.getElementById('addEventModal').classList.add('open');
 }
-
-/* ══════════════════════════════════════
-   COLOR PICKER
-   ══════════════════════════════════════ */
 
 document.addEventListener('click', e => {
   const swatch = e.target.closest('.color-swatch');
@@ -354,10 +330,6 @@ document.addEventListener('click', e => {
   swatch.classList.add('active');
   selectedColor = swatch.dataset.color;
 });
-
-/* ══════════════════════════════════════
-   UTILS
-   ══════════════════════════════════════ */
 
 function fmtTime(date) {
   return date.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
@@ -370,10 +342,6 @@ function fmtTime24(date) {
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
-/* ══════════════════════════════════════
-   INIT
-   ══════════════════════════════════════ */
 
 document.addEventListener('DOMContentLoaded', () => {
   renderCalendar();
