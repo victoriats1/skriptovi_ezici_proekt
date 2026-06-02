@@ -21,29 +21,38 @@ function switchTab(tab) {
   clearAuthError();
 }
 
+/* ── Google вход ─────────────────────── */
 async function signInWithGoogle() {
   clearAuthError();
-  try {
-    await auth.signInWithPopup(googleProvider);
-    window.location.href = '/dashboard';
-  } catch (err) {
-    showAuthError(err.message);
-  }
+  // Пренасочва към backend OAuth flow
+  window.location.href = '/auth/login';
 }
 
+/* ── Имейл вход ─────────────────────── */
 async function emailSignIn() {
   clearAuthError();
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   if (!email || !password) { showAuthError('Моля попълни всички полета.'); return; }
+
   try {
-    await auth.signInWithEmailAndPassword(email, password);
-    window.location.href = '/dashboard';
+    const res = await fetch('/auth/email-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/dashboard';
+    } else {
+      showAuthError(data.error || 'Грешка при вход.');
+    }
   } catch (err) {
-    showAuthError(friendlyError(err.code));
+    showAuthError('Грешка при вход. Опитай отново.');
   }
 }
 
+/* ── Имейл регистрация ──────────────── */
 async function emailRegister() {
   clearAuthError();
   const name     = document.getElementById('regName').value.trim();
@@ -51,87 +60,55 @@ async function emailRegister() {
   const password = document.getElementById('regPassword').value;
   if (!name || !email || !password) { showAuthError('Моля попълни всички полета.'); return; }
   if (password.length < 8) { showAuthError('Паролата трябва да е поне 8 символа.'); return; }
+
   try {
-    const cred = await auth.createUserWithEmailAndPassword(email, password);
-    await cred.user.updateProfile({ displayName: name });
-    if (db) {
-      await db.collection('users').doc(cred.user.uid).set({
-        displayName: name,
-        email:       email,
-        photoURL:    '',
-        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-    window.location.href = '/dashboard';
-  } catch (err) {
-    showAuthError(friendlyError(err.code));
-  }
-}
-
-function signOut() {
-  auth.signOut().then(() => { window.location.href = '/'; });
-}
-
-function requireAuth() {
-  auth.onAuthStateChanged(user => {
-    if (!user) {
-      window.location.href = '/';
-      return;
-    }
-    populateUserChip(user);
-  });
-}
-
-function redirectIfAuthed() {
-  auth.onAuthStateChanged(user => {
-    if (user) window.location.href = '/dashboard';
-  });
-}
-
-function populateUserChip(user) {
-  const nameEl   = document.getElementById('userName');
-  const emailEl  = document.getElementById('userEmail');
-  const avatarEl = document.getElementById('userAvatar');
-
-  if (nameEl)  nameEl.textContent  = user.displayName || user.email;
-  if (emailEl) emailEl.textContent = user.email;
-
-  if (avatarEl) {
-    if (user.photoURL) {
-      avatarEl.innerHTML = `<img src="${user.photoURL}" alt="avatar"/>`;
+    const res = await fetch('/auth/email-register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/dashboard';
     } else {
-      avatarEl.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+      showAuthError(data.error || 'Грешка при регистрация.');
     }
+  } catch (err) {
+    showAuthError('Грешка при регистрация. Опитай отново.');
   }
+}
+
+/* ── Изход ──────────────────────────── */
+function signOut() {
+  window.location.href = '/auth/logout';
+}
+
+/* ── Попълни потребителски чип ───────── */
+function populateUserChip() {
+  fetch('/auth/me')
+    .then(res => res.json())
+    .then(data => {
+      const nameEl   = document.getElementById('userName');
+      const emailEl  = document.getElementById('userEmail');
+      const avatarEl = document.getElementById('userAvatar');
+
+      if (nameEl)   nameEl.textContent  = data.name  || data.user_id;
+      if (emailEl)  emailEl.textContent = data.email || '';
+      if (avatarEl) avatarEl.textContent = (data.name || '?')[0].toUpperCase();
+    })
+    .catch(() => {});
 }
 
 function getCurrentUser() {
-  return auth.currentUser;
+  return null; // Използваме Flask session, не Firebase auth
 }
 
-function friendlyError(code) {
-  const map = {
-    'auth/user-not-found':       'Не е намерен акаунт с този имейл.',
-    'auth/wrong-password':       'Грешна парола.',
-    'auth/email-already-in-use': 'Вече съществува акаунт с този имейл.',
-    'auth/weak-password':        'Паролата е твърде слаба.',
-    'auth/invalid-email':        'Невалиден имейл адрес.',
-    'auth/too-many-requests':    'Твърде много опити. Моля опитай по-късно.',
-  };
-  return map[code] || 'Нещо се обърка. Моля опитай отново.';
-}
-
+/* ── Синхронизация на календар ───────── */
 async function syncGoogleCalendar() {
   const btn = document.getElementById('syncCalBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Синхронизира се…'; }
   try {
-    const result = await auth.currentUser.reauthenticateWithPopup(googleProvider);
-    const token  = result.credential.accessToken;
-    const res = await fetch('/api/calendar/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
+    const res = await fetch('/api/calendar/sync', { method: 'POST' });
     if (!res.ok) throw new Error('Синхронизацията е неуспешна');
     showToast('Календарът е синхронизиран!', 'success');
     if (typeof loadEvents === 'function') loadEvents();
@@ -142,14 +119,15 @@ async function syncGoogleCalendar() {
   }
 }
 
+/* ── Инициализация ───────────────────── */
 (function init() {
   const path = window.location.pathname;
+
   if (path.includes('dashboard') || path.includes('groups')) {
-    requireAuth();
-  } else if (path === '/' || path.includes('index')) {
-    redirectIfAuthed();
+    populateUserChip();
   }
 
+  // Задай днешната дата
   const dateEl = document.getElementById('dateToday');
   if (dateEl) {
     dateEl.textContent = new Date().toLocaleDateString('bg-BG', {
@@ -158,10 +136,12 @@ async function syncGoogleCalendar() {
   }
 })();
 
+/* ── Затвори модал ───────────────────── */
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
+/* ── Toast съобщения ─────────────────── */
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
