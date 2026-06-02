@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 from dotenv import load_dotenv
 
@@ -19,9 +19,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
 ]
 
-
 def get_google_auth_url():
-    """Връща URL-а към който пращаме потребителя за вход."""
     scope = " ".join(SCOPES)
     params = (
         f"?client_id={GOOGLE_CLIENT_ID}"
@@ -33,9 +31,7 @@ def get_google_auth_url():
     )
     return GOOGLE_AUTH_URL + params
 
-
 def exchange_code_for_tokens(code):
-    """Менява authorization code за access + refresh токени."""
     response = requests.post(GOOGLE_TOKEN_URL, data={
         "code": code,
         "client_id": GOOGLE_CLIENT_ID,
@@ -46,9 +42,7 @@ def exchange_code_for_tokens(code):
     response.raise_for_status()
     return response.json()
 
-
 def get_user_info(access_token):
-    """Взима email и име на потребителя от Google."""
     response = requests.get(
         GOOGLE_USERINFO_URL,
         headers={"Authorization": f"Bearer {access_token}"}
@@ -56,14 +50,10 @@ def get_user_info(access_token):
     response.raise_for_status()
     return response.json()
 
-
 def save_user_to_firestore(user_info, tokens):
-    """Записва или обновява потребителя във Firestore."""
     from backend.firebase_config import get_db
-
     db = get_db()
-    user_id = user_info["sub"]  # уникален Google ID
-
+    user_id = user_info["sub"]
     db.collection("users").document(user_id).set({
         "email": user_info["email"],
         "name": user_info["name"],
@@ -71,5 +61,4 @@ def save_user_to_firestore(user_info, tokens):
         "access_token": tokens["access_token"],
         "refresh_token": tokens.get("refresh_token", ""),
     }, merge=True)
-
     return user_id

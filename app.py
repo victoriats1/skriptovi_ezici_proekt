@@ -1,4 +1,4 @@
-import os
+﻿import os
 from flask import Flask, render_template, session, redirect
 from dotenv import load_dotenv
 from backend.firebase_config import init_firebase
