@@ -49,3 +49,15 @@ def get_busy_intervals(access_token, days_ahead=7):
                 "end": datetime.fromisoformat(end),
             })
     return busy
+
+
+def create_event(access_token, title, start, end, notes=""):
+    service = get_calendar_service(access_token)
+    event = {
+        "summary": title,
+        "description": notes,
+        "start": {"dateTime": start, "timeZone": "Europe/Sofia"},
+        "end":   {"dateTime": end,   "timeZone": "Europe/Sofia"},
+    }
+    created = service.events().insert(calendarId="primary", body=event).execute()
+    return created
