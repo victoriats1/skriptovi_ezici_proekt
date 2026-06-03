@@ -16,7 +16,7 @@ SCOPES = [
     "openid",
     "email",
     "profile",
-    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar",  # ← променено от calendar.readonly
 ]
 
 def get_google_auth_url():

@@ -44,15 +44,25 @@ def get_busy_intervals(access_token, days_ahead=7):
         start = event["start"]
         end = event["end"]
         if "T" in start:
+            # Нормализирай към UTC
+            start_dt = datetime.fromisoformat(start).astimezone(timezone.utc)
+            end_dt   = datetime.fromisoformat(end).astimezone(timezone.utc)
             busy.append({
-                "start": datetime.fromisoformat(start),
-                "end": datetime.fromisoformat(end),
+                "start": start_dt,
+                "end":   end_dt,
             })
     return busy
 
 
 def create_event(access_token, title, start, end, notes=""):
     service = get_calendar_service(access_token)
+
+    # Изчисти часовата зона ако има проблем
+    if start.endswith('Z'):
+        start = start.replace('Z', '+00:00')
+    if end.endswith('Z'):
+        end = end.replace('Z', '+00:00')
+
     event = {
         "summary": title,
         "description": notes,

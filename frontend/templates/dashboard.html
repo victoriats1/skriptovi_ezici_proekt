@@ -75,6 +75,19 @@
 
     <div class="dashboard-grid">
 
+      <!-- Секция покани -->
+      <div id="invitesSection" style="display:none; grid-column: 1 / -1;">
+        <div class="card" style="border-left: 3px solid var(--accent);">
+          <div class="card-header">
+            <h3 class="card-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Покани за групи
+            </h3>
+          </div>
+          <ul class="invites-list" id="invitesList"></ul>
+        </div>
+      </div>
+
       <section class="card card-calendar">
         <div class="card-header">
           <h3 class="card-title">
@@ -321,7 +334,6 @@
 
     function openNotifModal() {
       document.getElementById('notifModal').classList.add('open');
-      // Копира известията от таблото в модала
       const src  = document.getElementById('notifList');
       const dest = document.getElementById('notifListModal');
       if (src && dest) dest.innerHTML = src.innerHTML;
@@ -330,11 +342,9 @@
     function renderCalendarInModal() {
       const wrap  = document.getElementById('calendarWrapModal');
       const label = document.getElementById('calMonthLabel2');
-      if (!wrap) return;
-      // Използва същата renderCalendar логика но в модала
       const mainWrap  = document.getElementById('calendarWrap');
       const mainLabel = document.getElementById('calMonthLabel');
-      if (mainWrap)  wrap.innerHTML  = mainWrap.innerHTML;
+      if (mainWrap && wrap)   wrap.innerHTML    = mainWrap.innerHTML;
       if (mainLabel && label) label.textContent = mainLabel.textContent;
     }
   </script>

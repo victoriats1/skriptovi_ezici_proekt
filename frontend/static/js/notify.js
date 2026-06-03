@@ -2,26 +2,29 @@
 
 let unsubscribeNotifications = null;
 
-function initNotifications() {
-  const user = getCurrentUser();
-  if (!user || !db) return;
+/* ══════════════════════════════════════
+   ИЗВЕСТИЯ
+   ══════════════════════════════════════ */
 
-  unsubscribeNotifications = db.collection('notifications')
-    .where('recipientUid', '==', user.uid)
-    .orderBy('createdAt', 'desc')
-    .limit(20)
-    .onSnapshot(snap => {
-      const notifs = [];
-      snap.forEach(doc => notifs.push({ id: doc.id, ...doc.data() }));
-      renderNotifications(notifs);
-      updateBadge(notifs.filter(n => !n.read).length);
-    }, err => {
-      console.error('notifications listener:', err);
-    });
+async function loadNotifications() {
+  const list      = document.getElementById('notifList');
+  const listModal = document.getElementById('notifListModal');
+  const badge     = document.getElementById('navBadge');
+
+  try {
+    const res  = await fetch('/notify/my');
+    const data = await res.json();
+    const notifs = data.notifications || [];
+
+    updateBadge(notifs.length);
+    renderNotifications(notifs, list);
+    renderNotifications(notifs, listModal);
+  } catch (err) {
+    console.error('loadNotifications:', err);
+  }
 }
 
-function renderNotifications(notifs) {
-  const list = document.getElementById('notifList');
+function renderNotifications(notifs, list) {
   if (!list) return;
 
   if (!notifs.length) {
@@ -30,44 +33,37 @@ function renderNotifications(notifs) {
   }
 
   list.innerHTML = notifs.map(n => {
-    const ts  = n.createdAt ? relativeTime(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt)) : '';
-    const cls = n.read ? 'notif-item' : 'notif-item unread';
+    const ts = n.created_at ? relativeTime(new Date(n.created_at)) : '';
     return `
-      <li class="${cls}" onclick="markRead('${n.id}')">
-        ${!n.read ? '<div class="notif-dot"></div>' : ''}
-        <div class="notif-body">
-          ${escHtml(n.message)}
-          ${n.groupName ? `<br><small style="color:var(--text-muted)">Група: ${escHtml(n.groupName)}</small>` : ''}
-        </div>
+      <li class="notif-item unread" onclick="markRead('${n.id}')">
+        <div class="notif-dot"></div>
+        <div class="notif-body">${escHtml(n.message)}</div>
         <div class="notif-time">${ts}</div>
       </li>`;
   }).join('');
 }
 
 async function markRead(notifId) {
-  if (!db) return;
   try {
-    await db.collection('notifications').doc(notifId).update({ read: true });
+    await fetch(`/notify/${notifId}/read`, { method: 'POST' });
+    loadNotifications();
   } catch (err) {
     console.error('markRead:', err);
   }
 }
 
 async function markAllNotificationsRead() {
-  const user = getCurrentUser();
-  if (!user || !db) return;
-  try {
-    const snap = await db.collection('notifications')
-      .where('recipientUid', '==', user.uid)
-      .where('read', '==', false)
-      .get();
-    const batch = db.batch();
-    snap.forEach(doc => batch.update(doc.ref, { read: true }));
-    await batch.commit();
-    showToast('Всички известия са маркирани като прочетени.', 'success');
-  } catch (err) {
-    showToast('Грешка: ' + err.message, 'error');
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  const items = list.querySelectorAll('.notif-item');
+  for (const item of items) {
+    const onclick = item.getAttribute('onclick');
+    if (onclick) {
+      const id = onclick.match(/'([^']+)'/)?.[1];
+      if (id) await markRead(id);
+    }
   }
+  showToast('Всички известия са маркирани като прочетени.', 'success');
 }
 
 function updateBadge(count) {
@@ -81,22 +77,55 @@ function updateBadge(count) {
   }
 }
 
-async function notifyCalendarChange(uid) {
-  const user = getCurrentUser();
-  if (!user) return;
+/* ══════════════════════════════════════
+   ПОКАНИ
+   ══════════════════════════════════════ */
+
+async function loadInvites() {
+  const list = document.getElementById('invitesList');
+  const section = document.getElementById('invitesSection');
+  if (!list) return;
+
   try {
-    await fetch('/api/notify/calendar-changed', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${await user.getIdToken()}`
-      },
-      body: JSON.stringify({ uid })
-    });
+    const res  = await fetch('/group/invites');
+    const data = await res.json();
+    const invites = data.invites || [];
+
+    if (!invites.length) {
+      if (section) section.style.display = 'none';
+      return;
+    }
+
+    if (section) section.style.display = 'block';
+
+    list.innerHTML = invites.map(inv => `
+      <li class="invite-item">
+        <div class="invite-info">
+          <span class="invite-from">${escHtml(inv.from_email)}</span>
+          <span class="invite-text"> те кани в група</span>
+        </div>
+        <button class="btn-primary btn-sm" onclick="acceptInvite('${inv.invite_id}')">Приеми</button>
+      </li>`).join('');
   } catch (err) {
-    console.warn('notifyCalendarChange:', err);
+    console.error('loadInvites:', err);
   }
 }
+
+async function acceptInvite(inviteId) {
+  try {
+    const res = await fetch(`/group/invite/${inviteId}/accept`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка');
+    showToast('Поканата е приета! Вече си в групата.', 'success');
+    loadInvites();
+  } catch (err) {
+    showToast('Грешка: ' + err.message, 'error');
+  }
+}
+
+/* ══════════════════════════════════════
+   UTILS
+   ══════════════════════════════════════ */
 
 function relativeTime(date) {
   const diff = (Date.now() - date) / 1000;
@@ -110,9 +139,16 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/* ══════════════════════════════════════
+   INIT
+   ══════════════════════════════════════ */
+
 document.addEventListener('DOMContentLoaded', () => {
-  auth.onAuthStateChanged(user => {
-    if (user) initNotifications();
-    else if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
-  });
+  loadNotifications();
+  loadInvites();
+  // Опресни на всеки 30 секунди
+  setInterval(() => {
+    loadNotifications();
+    loadInvites();
+  }, 30000);
 });

@@ -9,18 +9,14 @@ const EMOJIS = ['🎉','🍕','🎮','🏖️','🎬','☕','🎵','🏃','📚'
 let emojiIdx = 0;
 
 function loadGroups() {
-  const user = getCurrentUser();
-  if (!user || !db) return;
-
-  db.collection('groups')
-    .where('members', 'array-contains', user.uid)
-    .orderBy('createdAt', 'desc')
-    .onSnapshot(snap => {
-      const groups = [];
-      snap.forEach(doc => groups.push({ id: doc.id, ...doc.data() }));
+  fetch('/group/list')
+    .then(res => res.json())
+    .then(data => {
+      const groups = data.groups || [];
       renderGroupList(groups);
       renderGroupsMiniList(groups);
-    }, err => console.error('groups listener:', err));
+    })
+    .catch(err => console.error('loadGroups:', err));
 }
 
 function renderGroupList(groups) {
@@ -69,17 +65,20 @@ async function selectGroup(groupId) {
   document.getElementById('groupDetailContent').classList.remove('hidden');
 
   try {
-    const doc = await db.collection('groups').doc(groupId).get();
-    if (!doc.exists) return;
-    activeGroupData = { id: doc.id, ...doc.data() };
+    const res  = await fetch('/group/list');
+    const data = await res.json();
+    const group = (data.groups || []).find(g => g.id === groupId);
+    if (!group) return;
 
-    document.getElementById('detailGroupEmoji').textContent = activeGroupData.emoji || '🎉';
-    document.getElementById('detailGroupName').textContent  = activeGroupData.name;
-    const cnt = activeGroupData.members ? activeGroupData.members.length : 0;
+    activeGroupData = group;
+
+    document.getElementById('detailGroupEmoji').textContent = group.emoji || '🎉';
+    document.getElementById('detailGroupName').textContent  = group.name;
+    const cnt = group.members ? group.members.length : 0;
     document.getElementById('detailGroupMeta').textContent  = `${cnt} ${cnt === 1 ? 'член' : 'членове'}`;
 
     switchDetailTab('members', document.querySelector('.detail-tab[data-tab="members"]'));
-    loadMembers();
+    loadMembers(group);
     loadHangouts();
   } catch (err) {
     showToast('Грешка при зареждане на група: ' + err.message, 'error');
@@ -94,99 +93,75 @@ function switchDetailTab(tab, btn) {
   if (panel) panel.classList.remove('hidden');
 }
 
-async function loadMembers() {
-  if (!activeGroupData || !db) return;
+function loadMembers(group) {
   const list = document.getElementById('memberList');
   if (!list) return;
 
-  const uids = activeGroupData.members || [];
-  if (!uids.length) { list.innerHTML = `<li style="color:var(--text-muted);font-size:13px">Няма членове.</li>`; return; }
-
-  list.innerHTML = uids.map(() => `<li class="member-item"><div style="height:36px;width:200px;background:var(--bg-input);border-radius:6px"></div></li>`).join('');
-
-  try {
-    const promises = uids.map(uid => db.collection('users').doc(uid).get());
-    const docs = await Promise.all(promises);
-    const currentUser = getCurrentUser();
-
-    list.innerHTML = docs.map(d => {
-      const u       = d.data() || {};
-      const name    = u.displayName || u.email || d.id;
-      const isOwner = d.id === activeGroupData.ownerUid;
-      const isSelf  = d.id === currentUser?.uid;
-      const initials = name[0].toUpperCase();
-      const photo = u.photoURL
-        ? `<img src="${u.photoURL}" alt="${escHtml(name)}" />`
-        : initials;
-
-      return `
-        <li class="member-item">
-          <div class="member-avatar">${photo}</div>
-          <div class="member-info">
-            <div class="member-name">${escHtml(name)} ${isSelf ? '<span style="color:var(--text-muted);font-size:11px">(ти)</span>' : ''}</div>
-            <div class="member-email">${escHtml(u.email || '')}</div>
-          </div>
-          <span class="member-role ${isOwner ? 'member-role-owner' : ''}">${isOwner ? 'Създател' : 'Член'}</span>
-          <div class="member-status"></div>
-        </li>`;
-    }).join('');
-  } catch (err) {
-    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px">Грешка при зареждане на членове.</li>`;
+  const members = group.members || [];
+  if (!members.length) {
+    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px">Няма членове.</li>`;
+    return;
   }
+
+  list.innerHTML = members.map((uid, i) => {
+    const email = group.emails ? (group.emails[i] || '') : '';
+    const initials = email ? email[0].toUpperCase() : '?';
+    const isOwner = uid === group.ownerUid;
+    return `
+      <li class="member-item">
+        <div class="member-avatar">${initials}</div>
+        <div class="member-info">
+          <div class="member-name">${escHtml(email || uid)}</div>
+        </div>
+        <span class="member-role ${isOwner ? 'member-role-owner' : ''}">${isOwner ? 'Създател' : 'Член'}</span>
+        <div class="member-status"></div>
+      </li>`;
+  }).join('');
 }
 
 async function createGroup() {
-  const user = getCurrentUser();
-  if (!user || !db) return;
-
   const name = document.getElementById('newGroupName').value.trim();
   const desc = document.getElementById('newGroupDesc').value.trim();
   if (!name) { showToast('Моля въведи име на групата.', 'error'); return; }
 
   try {
-    const docRef = await db.collection('groups').add({
-      name,
-      description: desc,
-      emoji:       currentEmoji,
-      ownerUid:    user.uid,
-      members:     [user.uid],
-      invites:     inviteTags,
-      createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+    const res = await fetch('/group/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        description: desc,
+        emoji:  currentEmoji,
+        emails: inviteTags
+      })
     });
 
-    if (inviteTags.length) {
-      const token = await user.getIdToken();
-      await fetch('/api/groups/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ groupId: docRef.id, emails: inviteTags })
-      });
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка при създаване');
 
     closeModal('createGroupModal');
     document.getElementById('newGroupName').value = '';
     document.getElementById('newGroupDesc').value = '';
     clearInviteTags();
     showToast(`Групата „${name}" е създадена!`, 'success');
-    selectGroup(docRef.id);
+    loadGroups();
   } catch (err) {
     showToast('Грешка при създаване: ' + err.message, 'error');
   }
 }
 
 async function inviteMember() {
-  const user  = getCurrentUser();
   const email = document.getElementById('singleInviteEmail').value.trim();
   if (!email || !activeGroupId) return;
 
   try {
-    const token = await user.getIdToken();
-    const res = await fetch('/api/groups/invite', {
+    const res = await fetch('/group/invite', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ groupId: activeGroupId, emails: [email] })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, group_id: activeGroupId })
     });
-    if (!res.ok) throw new Error('Поканата е неуспешна');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка');
     closeModal('inviteMemberModal');
     document.getElementById('singleInviteEmail').value = '';
     showToast(`Поканата е изпратена до ${email}`, 'success');
@@ -196,27 +171,21 @@ async function inviteMember() {
 }
 
 async function loadGroupSlots() {
-  const user = getCurrentUser();
-  if (!user || !activeGroupId) return;
-
   const from = document.getElementById('slotFilterFrom').value;
   const to   = document.getElementById('slotFilterTo').value;
   const dur  = document.getElementById('slotFilterDur').value;
   const list = document.getElementById('groupSlotsList');
-  if (!list) return;
+  if (!list || !activeGroupId) return;
 
   list.innerHTML = `<li class="slots-prompt"><div class="cal-loading"><div class="cal-spinner"></div> Търси свободно време…</div></li>`;
 
   try {
-    const params = new URLSearchParams({ groupId: activeGroupId, from, to, duration: dur });
-    const res  = await fetch(`/api/free-slots?${params}`, {
-      headers: { 'Authorization': `Bearer ${await user.getIdToken()}` }
-    });
+    const res  = await fetch(`/group/free-slots?group_id=${activeGroupId}`);
     const data = await res.json();
-    const slots = data.slots || [];
+    const slots = data.free_slots || [];
 
     if (!slots.length) {
-      list.innerHTML = `<li class="slots-prompt">Не са намерени общи свободни часове. Опитай по-широк период.</li>`;
+      list.innerHTML = `<li class="slots-prompt">Не са намерени общи свободни часове.</li>`;
       return;
     }
 
@@ -225,8 +194,7 @@ async function loadGroupSlots() {
       const end   = new Date(s.end);
       const day   = start.toLocaleDateString('bg-BG', { weekday: 'long', month: 'short', day: 'numeric' });
       const time  = `${fmtTime(start)} – ${fmtTime(end)}`;
-      const dur   = Math.round((end - start) / 60000);
-      const who   = s.availableFor ? `Всички ${s.availableFor} членове са свободни` : 'Общо свободно време';
+      const durMin = Math.round((end - start) / 60000);
       return `
         <li class="slot-item" onclick="prefillHangout('${s.start}','${s.end}')">
           <div class="slot-icon">
@@ -234,12 +202,12 @@ async function loadGroupSlots() {
           </div>
           <div class="slot-info">
             <div class="slot-day">${day} · ${time}</div>
-            <div class="slot-time">${who} · ${dur} мин прозорец</div>
+            <div class="slot-time">${durMin} мин свободно</div>
           </div>
         </li>`;
     }).join('');
   } catch (err) {
-    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px;padding:10px 0">Задай период от дати за да търсиш.</li>`;
+    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px;padding:10px 0">Грешка при зареждане.</li>`;
   }
 }
 
@@ -250,6 +218,7 @@ function openFindSlotForGroup() {
   const next  = new Date(); next.setDate(next.getDate() + 14);
   document.getElementById('slotFilterFrom').value = today;
   document.getElementById('slotFilterTo').value   = next.toISOString().slice(0, 10);
+  loadGroupSlots();
 }
 
 function prefillHangout(start, end) {
@@ -261,61 +230,19 @@ function prefillHangout(start, end) {
   document.getElementById('scheduleHangoutModal').classList.add('open');
 }
 
-async function loadHangouts() {
-  if (!activeGroupId || !db) return;
+function loadHangouts() {
   const list = document.getElementById('hangoutList');
   if (!list) return;
-
-  const now  = new Date();
-  const snap = await db.collection('hangouts')
-    .where('groupId', '==', activeGroupId)
-    .where('start', '>=', firebase.firestore.Timestamp.fromDate(now))
-    .orderBy('start')
-    .limit(10)
-    .get();
-
-  const hangouts = [];
-  snap.forEach(d => hangouts.push({ id: d.id, ...d.data() }));
-
-  if (!hangouts.length) {
-    list.innerHTML = `<li class="hangout-empty">Няма планирани срещи.</li>`;
-    return;
-  }
-
-  list.innerHTML = hangouts.map(h => {
-    const start = h.start.toDate ? h.start.toDate() : new Date(h.start);
-    const end   = h.end ? (h.end.toDate ? h.end.toDate() : new Date(h.end)) : null;
-    const month = start.toLocaleDateString('bg-BG', { month: 'short' }).toUpperCase();
-    const day   = start.getDate();
-    const time  = fmtTime(start) + (end ? ` – ${fmtTime(end)}` : '');
-    return `
-      <li class="hangout-item">
-        <div class="hangout-date-badge">
-          <span class="hangout-month">${month}</span>
-          <span class="hangout-day">${day}</span>
-        </div>
-        <div class="hangout-info">
-          <div class="hangout-title">${escHtml(h.title)}</div>
-          <div class="hangout-meta">
-            <span>${time}</span>
-            ${h.location ? `<span>📍 ${escHtml(h.location)}</span>` : ''}
-          </div>
-        </div>
-      </li>`;
-  }).join('');
+  list.innerHTML = `<li class="hangout-empty">Няма планирани срещи.</li>`;
 }
 
 async function scheduleHangout() {
-  const user = getCurrentUser();
-  if (!user || !activeGroupId || !db) return;
-
   const title    = document.getElementById('hangoutTitle').value.trim();
   const date     = document.getElementById('hangoutDate').value;
   const start    = document.getElementById('hangoutStart').value;
   const end      = document.getElementById('hangoutEnd').value;
   const location = document.getElementById('hangoutLocation').value.trim();
   const notes    = document.getElementById('hangoutNotes').value.trim();
-  const notify   = document.getElementById('hangoutNotify').checked;
 
   if (!title || !date) { showToast('Моля добави заглавие и дата.', 'error'); return; }
 
@@ -323,24 +250,24 @@ async function scheduleHangout() {
   const endDt   = end ? new Date(`${date}T${end}`) : null;
 
   try {
-    const docRef = await db.collection('hangouts').add({
-      groupId:   activeGroupId,
-      groupName: activeGroupData?.name || '',
-      title, location, notes,
-      start:     firebase.firestore.Timestamp.fromDate(startDt),
-      end:       endDt ? firebase.firestore.Timestamp.fromDate(endDt) : null,
-      createdBy: user.uid,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    const res = await fetch('/calendar/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        notes: `${notes}${location ? ' | Място: ' + location : ''}`,
+        start: startDt.toISOString(),
+        end:   endDt ? endDt.toISOString() : startDt.toISOString()
+      })
     });
 
-    if (notify) {
-      const token = await user.getIdToken();
-      await fetch('/api/notify/hangout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ hangoutId: docRef.id, groupId: activeGroupId })
-      });
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Грешка от сървъра');
     }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка');
 
     closeModal('scheduleHangoutModal');
     showToast('Срещата е планирана! 🎉', 'success');
@@ -424,7 +351,5 @@ function escHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  auth.onAuthStateChanged(user => {
-    if (user) loadGroups();
-  });
+  loadGroups();
 });

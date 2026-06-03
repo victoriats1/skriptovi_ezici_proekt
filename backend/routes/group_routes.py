@@ -16,15 +16,52 @@ def login_required(f):
     return decorated
 
 
+@group_bp.route("/create", methods=["POST"])
+@login_required
+def create_group():
+    data   = request.get_json()
+    name   = data.get("name")
+    emoji  = data.get("emoji", "🎉")
+    emails = data.get("emails", [])
+
+    if not name:
+        return jsonify({"error": "Липсва име на групата"}), 400
+
+    db      = get_db()
+    user_id = session["user_id"]
+
+    group_ref = db.collection("groups").add({
+        "name":     name,
+        "emoji":    emoji,
+        "ownerUid": user_id,
+        "members":  [user_id],
+        "emails":   [session.get("user_email", "")],
+    })
+
+    group_id = group_ref[1].id
+
+    # Изпрати покани до останалите имейли
+    for email in emails:
+        db.collection("invites").add({
+            "from_id":    user_id,
+            "from_email": session.get("user_email", ""),
+            "group_id":   group_id,
+            "to_email":   email,
+            "status":     "pending",
+        })
+
+    return jsonify({"status": "ok", "group_id": group_id})
+
+
 @group_bp.route("/invite", methods=["POST"])
 @login_required
 def invite():
-    data = request.get_json()
+    data  = request.get_json()
     email = data.get("email")
     if not email:
         return jsonify({"error": "Липсва имейл"}), 400
 
-    db = get_db()
+    db      = get_db()
     user_id = session["user_id"]
 
     users = db.collection("users").where("email", "==", email).get()
@@ -32,17 +69,17 @@ def invite():
         return jsonify({"error": "Потребителят не е намерен"}), 404
 
     invited_user = users[0]
-    invited_id = invited_user.id
+    invited_id   = invited_user.id
 
     if invited_id == user_id:
         return jsonify({"error": "Не можеш да поканиш себе си"}), 400
 
     db.collection("invites").add({
-        "from_id": user_id,
+        "from_id":    user_id,
         "from_email": session.get("user_email", ""),
-        "to_id": invited_id,
-        "to_email": email,
-        "status": "pending",
+        "to_id":      invited_id,
+        "to_email":   email,
+        "status":     "pending",
     })
 
     return jsonify({"message": f"Покана изпратена до {email}"})
@@ -51,7 +88,7 @@ def invite():
 @group_bp.route("/invites", methods=["GET"])
 @login_required
 def get_invites():
-    db = get_db()
+    db      = get_db()
     user_id = session["user_id"]
 
     invites = db.collection("invites")\
@@ -63,9 +100,9 @@ def get_invites():
     for invite in invites:
         data = invite.to_dict()
         result.append({
-            "invite_id": invite.id,
+            "invite_id":  invite.id,
             "from_email": data.get("from_email"),
-            "from_id": data.get("from_id"),
+            "from_id":    data.get("from_id"),
         })
 
     return jsonify({"invites": result})
@@ -74,11 +111,11 @@ def get_invites():
 @group_bp.route("/invite/<invite_id>/accept", methods=["POST"])
 @login_required
 def accept_invite(invite_id):
-    db = get_db()
+    db      = get_db()
     user_id = session["user_id"]
 
     invite_ref = db.collection("invites").document(invite_id)
-    invite = invite_ref.get()
+    invite     = invite_ref.get()
 
     if not invite.exists:
         return jsonify({"error": "Поканата не съществува"}), 404
@@ -92,10 +129,33 @@ def accept_invite(invite_id):
 
     db.collection("groups").add({
         "members": [invite_data["from_id"], user_id],
-        "emails": [invite_data["from_email"], invite_data["to_email"]],
+        "emails":  [invite_data["from_email"], invite_data["to_email"]],
     })
 
     return jsonify({"message": "Поканата е приета, групата е създадена"})
+
+
+@group_bp.route("/list", methods=["GET"])
+@login_required
+def list_groups():
+    db      = get_db()
+    user_id = session["user_id"]
+
+    groups = db.collection("groups")\
+        .where("members", "array_contains", user_id)\
+        .get()
+
+    result = []
+    for g in groups:
+        data = g.to_dict()
+        result.append({
+            "id":       g.id,
+            "name":     data.get("name", ""),
+            "emoji":    data.get("emoji", "🎉"),
+            "members":  data.get("members", []),
+        })
+
+    return jsonify({"groups": result})
 
 
 @group_bp.route("/free-slots", methods=["GET"])
@@ -105,7 +165,7 @@ def group_free_slots():
     if not group_id:
         return jsonify({"error": "Липсва group_id"}), 400
 
-    db = get_db()
+    db      = get_db()
     user_id = session["user_id"]
 
     group = db.collection("groups").document(group_id).get()
