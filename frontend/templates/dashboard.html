@@ -9,6 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css">
   <link rel="stylesheet" href="/static/css/calendar.css">
+  <style>
+    #invitesSection {
+      grid-column: 1 / -1 !important;
+      display: none;
+    }
+  </style>
 </head>
 <body class="page-dashboard">
 
@@ -338,6 +344,28 @@
       const dest = document.getElementById('notifListModal');
       if (src && dest) dest.innerHTML = src.innerHTML;
     }
+
+
+    // Зареди групите за dashboard widget
+    fetch('/group/list')
+      .then(res => res.json())
+      .then(data => {
+        const groups = data.groups || [];
+        const list = document.getElementById('groupsMiniList');
+        if (!list) return;
+        if (!groups.length) {
+          list.innerHTML = '<li class="group-mini-empty">Нямаш групи. <a href="/groups">Създай</a></li>';
+          return;
+        }
+        list.innerHTML = groups.slice(0, 5).map(g =>
+          '<li><a href="/groups" class="group-mini-item">' +
+          '<div class="group-mini-emoji">' + (g.emoji || '🎉') + '</div>' +
+          '<span class="group-mini-name">' + g.name + '</span>' +
+          '<span class="group-mini-count">' + (g.members || []).length + ' членове</span>' +
+          '</a></li>'
+        ).join('');
+      })
+      .catch(err => console.error(err));
 
     function renderCalendarInModal() {
       const wrap  = document.getElementById('calendarWrapModal');

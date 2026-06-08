@@ -65,8 +65,8 @@ async function selectGroup(groupId) {
   document.getElementById('groupDetailContent').classList.remove('hidden');
 
   try {
-    const res  = await fetch('/group/list');
-    const data = await res.json();
+    const res   = await fetch('/group/list');
+    const data  = await res.json();
     const group = (data.groups || []).find(g => g.id === groupId);
     if (!group) return;
 
@@ -75,7 +75,7 @@ async function selectGroup(groupId) {
     document.getElementById('detailGroupEmoji').textContent = group.emoji || '🎉';
     document.getElementById('detailGroupName').textContent  = group.name;
     const cnt = group.members ? group.members.length : 0;
-    document.getElementById('detailGroupMeta').textContent  = `${cnt} ${cnt === 1 ? 'член' : 'членове'}`;
+    document.getElementById('detailGroupMeta').textContent  = cnt + (cnt === 1 ? ' член' : ' членове');
 
     switchDetailTab('members', document.querySelector('.detail-tab[data-tab="members"]'));
     loadMembers(group);
@@ -89,7 +89,7 @@ function switchDetailTab(tab, btn) {
   document.querySelectorAll('.detail-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.detail-panel').forEach(p => p.classList.add('hidden'));
   if (btn) btn.classList.add('active');
-  const panel = document.getElementById(`tab-${tab}`);
+  const panel = document.getElementById('tab-' + tab);
   if (panel) panel.classList.remove('hidden');
 }
 
@@ -99,23 +99,20 @@ function loadMembers(group) {
 
   const members = group.members || [];
   if (!members.length) {
-    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px">Няма членове.</li>`;
+    list.innerHTML = '<li style="color:var(--text-muted);font-size:13px">Няма членове.</li>';
     return;
   }
 
   list.innerHTML = members.map((uid, i) => {
-    const email = group.emails ? (group.emails[i] || '') : '';
+    const email    = group.emails ? (group.emails[i] || '') : '';
     const initials = email ? email[0].toUpperCase() : '?';
-    const isOwner = uid === group.ownerUid;
-    return `
-      <li class="member-item">
-        <div class="member-avatar">${initials}</div>
-        <div class="member-info">
-          <div class="member-name">${escHtml(email || uid)}</div>
-        </div>
-        <span class="member-role ${isOwner ? 'member-role-owner' : ''}">${isOwner ? 'Създател' : 'Член'}</span>
-        <div class="member-status"></div>
-      </li>`;
+    const isOwner  = uid === group.ownerUid;
+    return '<li class="member-item">' +
+      '<div class="member-avatar">' + initials + '</div>' +
+      '<div class="member-info"><div class="member-name">' + escHtml(email || uid) + '</div></div>' +
+      '<span class="member-role ' + (isOwner ? 'member-role-owner' : '') + '">' + (isOwner ? 'Създател' : 'Член') + '</span>' +
+      '<div class="member-status"></div>' +
+      '</li>';
   }).join('');
 }
 
@@ -128,12 +125,7 @@ async function createGroup() {
     const res = await fetch('/group/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        description: desc,
-        emoji:  currentEmoji,
-        emails: inviteTags
-      })
+      body: JSON.stringify({ name, description: desc, emoji: currentEmoji, emails: inviteTags })
     });
 
     const data = await res.json();
@@ -143,7 +135,7 @@ async function createGroup() {
     document.getElementById('newGroupName').value = '';
     document.getElementById('newGroupDesc').value = '';
     clearInviteTags();
-    showToast(`Групата „${name}" е създадена!`, 'success');
+    showToast('Групата е създадена!', 'success');
     loadGroups();
   } catch (err) {
     showToast('Грешка при създаване: ' + err.message, 'error');
@@ -164,7 +156,7 @@ async function inviteMember() {
     if (!res.ok) throw new Error(data.error || 'Грешка');
     closeModal('inviteMemberModal');
     document.getElementById('singleInviteEmail').value = '';
-    showToast(`Поканата е изпратена до ${email}`, 'success');
+    showToast('Поканата е изпратена до ' + email, 'success');
   } catch (err) {
     showToast('Грешка при покана: ' + err.message, 'error');
   }
@@ -175,39 +167,52 @@ async function loadGroupSlots() {
   const to   = document.getElementById('slotFilterTo').value;
   const dur  = document.getElementById('slotFilterDur').value;
   const list = document.getElementById('groupSlotsList');
+
+  const grid = document.getElementById('availabilityGrid');
+  if (grid) grid.style.display = 'none';
+
   if (!list || !activeGroupId) return;
 
-  list.innerHTML = `<li class="slots-prompt"><div class="cal-loading"><div class="cal-spinner"></div> Търси свободно време…</div></li>`;
+  list.innerHTML = '<li class="slots-prompt"><div class="cal-loading"><div class="cal-spinner"></div> Търси свободно време…</div></li>';
 
   try {
-    const res  = await fetch(`/group/free-slots?group_id=${activeGroupId}`);
+    const res  = await fetch('/group/free-slots?group_id=' + activeGroupId);
     const data = await res.json();
-    const slots = data.free_slots || [];
+    let slots  = data.free_slots || [];
+
+    if (from) {
+      const fromDt = new Date(from);
+      slots = slots.filter(s => new Date(s.start) >= fromDt);
+    }
+    if (to) {
+      const toDt = new Date(to);
+      toDt.setHours(23, 59, 59);
+      slots = slots.filter(s => new Date(s.start) <= toDt);
+    }
+    if (dur) {
+      slots = slots.filter(s => s.duration_minutes >= parseInt(dur));
+    }
 
     if (!slots.length) {
-      list.innerHTML = `<li class="slots-prompt">Не са намерени общи свободни часове.</li>`;
+      list.innerHTML = '<li class="slots-prompt">Не са намерени общи свободни часове за избрания период.</li>';
       return;
     }
 
     list.innerHTML = slots.map(s => {
-      const start = new Date(s.start);
-      const end   = new Date(s.end);
-      const day   = start.toLocaleDateString('bg-BG', { weekday: 'long', month: 'short', day: 'numeric' });
-      const time  = `${fmtTime(start)} – ${fmtTime(end)}`;
-      const durMin = Math.round((end - start) / 60000);
-      return `
-        <li class="slot-item" onclick="prefillHangout('${s.start}','${s.end}')">
-          <div class="slot-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div class="slot-info">
-            <div class="slot-day">${day} · ${time}</div>
-            <div class="slot-time">${durMin} мин свободно</div>
-          </div>
-        </li>`;
+      const start  = new Date(s.start);
+      const end    = new Date(s.end);
+      const day    = start.toLocaleDateString('bg-BG', { weekday: 'long', month: 'short', day: 'numeric' });
+      const time   = fmtTime(start) + ' - ' + fmtTime(end);
+      const durMin = s.duration_minutes;
+      return '<li class="slot-item" onclick="prefillHangout(\'' + s.start + '\',\'' + s.end + '\')">' +
+        '<div class="slot-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+        '<div class="slot-info">' +
+          '<div class="slot-day">' + day + ' · ' + time + '</div>' +
+          '<div class="slot-time">' + durMin + ' мин свободно</div>' +
+        '</div></li>';
     }).join('');
   } catch (err) {
-    list.innerHTML = `<li style="color:var(--text-muted);font-size:13px;padding:10px 0">Грешка при зареждане.</li>`;
+    list.innerHTML = '<li style="color:var(--text-muted);font-size:13px;padding:10px 0">Грешка при зареждане.</li>';
   }
 }
 
@@ -222,18 +227,50 @@ function openFindSlotForGroup() {
 }
 
 function prefillHangout(start, end) {
-  const d = new Date(start);
-  const e = new Date(end);
-  document.getElementById('hangoutDate').value  = d.toISOString().slice(0, 10);
-  document.getElementById('hangoutStart').value = fmtTime24(d);
-  document.getElementById('hangoutEnd').value   = fmtTime24(e);
+  const d   = new Date(start);
+  const e   = new Date(end);
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('hangoutDate').value  = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  document.getElementById('hangoutStart').value = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  document.getElementById('hangoutEnd').value   = pad(e.getHours()) + ':' + pad(e.getMinutes());
   document.getElementById('scheduleHangoutModal').classList.add('open');
 }
 
-function loadHangouts() {
+async function loadHangouts() {
   const list = document.getElementById('hangoutList');
-  if (!list) return;
-  list.innerHTML = `<li class="hangout-empty">Няма планирани срещи.</li>`;
+  if (!list || !activeGroupId) return;
+
+  try {
+    const res      = await fetch('/group/hangouts?group_id=' + activeGroupId);
+    const data     = await res.json();
+    const hangouts = data.hangouts || [];
+
+    if (!hangouts.length) {
+      list.innerHTML = '<li class="hangout-empty">Няма планирани срещи.</li>';
+      return;
+    }
+
+    list.innerHTML = hangouts.map(h => {
+      const start = new Date(h.start);
+      const end   = h.end ? new Date(h.end) : null;
+      const month = start.toLocaleDateString('bg-BG', { month: 'short' }).toUpperCase();
+      const day   = start.getDate();
+      const time  = fmtTime(start) + (end ? ' - ' + fmtTime(end) : '');
+      return '<li class="hangout-item">' +
+        '<div class="hangout-date-badge">' +
+          '<span class="hangout-month">' + month + '</span>' +
+          '<span class="hangout-day">' + day + '</span>' +
+        '</div>' +
+        '<div class="hangout-info">' +
+          '<div class="hangout-title">' + escHtml(h.title) + '</div>' +
+          '<div class="hangout-meta"><span>' + time + '</span>' +
+          (h.location ? '<span>📍 ' + escHtml(h.location) + '</span>' : '') +
+          '</div>' +
+        '</div></li>';
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<li class="hangout-empty">Грешка при зареждане.</li>';
+  }
 }
 
 async function scheduleHangout() {
@@ -243,31 +280,67 @@ async function scheduleHangout() {
   const end      = document.getElementById('hangoutEnd').value;
   const location = document.getElementById('hangoutLocation').value.trim();
   const notes    = document.getElementById('hangoutNotes').value.trim();
+  const notify   = document.getElementById('hangoutNotify').checked;
 
-  if (!title || !date) { showToast('Моля добави заглавие и дата.', 'error'); return; }
+  if (!title || !date || !start || !end) {
+    showToast('Моля попълни заглавие, дата, начало и край.', 'error');
+    return;
+  }
 
-  const startDt = new Date(`${date}T${start || '00:00'}`);
-  const endDt   = end ? new Date(`${date}T${end}`) : null;
+  const startDt = new Date(date + 'T' + start + ':00');
+  const endDt   = new Date(date + 'T' + end   + ':00');
+
+  if (isNaN(startDt.getTime()) || isNaN(endDt.getTime())) {
+    showToast('Невалидна дата или час.', 'error');
+    return;
+  }
 
   try {
-    const res = await fetch('/calendar/events', {
+    // 1. Запази в Google Calendar
+    const calRes = await fetch('/calendar/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title,
-        notes: `${notes}${location ? ' | Място: ' + location : ''}`,
+        notes: notes + (location ? ' | Място: ' + location : ''),
         start: startDt.toISOString(),
-        end:   endDt ? endDt.toISOString() : startDt.toISOString()
+        end:   endDt.toISOString()
       })
     });
 
-    const contentType = res.headers.get('content-type');
+    const contentType = calRes.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('Грешка от сървъра');
+      throw new Error('Грешка от сървъра при запазване');
     }
+    const calData = await calRes.json();
+    if (!calRes.ok) throw new Error(calData.error || 'Грешка при запазване');
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Грешка');
+    // 2. Запази в Firestore
+    await fetch('/group/hangouts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        group_id: activeGroupId,
+        title,
+        start:    startDt.toISOString(),
+        end:      endDt.toISOString(),
+        location,
+        notes
+      })
+    });
+
+    // 3. Изпрати известие
+    if (notify && activeGroupId) {
+      await fetch('/notify/hangout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          group_id: activeGroupId,
+          title,
+          start: startDt.toISOString()
+        })
+      });
+    }
 
     closeModal('scheduleHangoutModal');
     showToast('Срещата е планирана! 🎉', 'success');
@@ -282,18 +355,17 @@ function renderGroupsMiniList(groups) {
   if (!list) return;
 
   if (!groups.length) {
-    list.innerHTML = `<li class="group-mini-empty">Нямаш групи. <a href="/groups">Създай</a></li>`;
+    list.innerHTML = '<li class="group-mini-empty">Нямаш групи. <a href="/groups">Създай</a></li>';
     return;
   }
 
-  list.innerHTML = groups.slice(0, 5).map(g => `
-    <li>
-      <a href="/groups" class="group-mini-item">
-        <div class="group-mini-emoji">${escHtml(g.emoji || '🎉')}</div>
-        <span class="group-mini-name">${escHtml(g.name)}</span>
-        <span class="group-mini-count">${(g.members || []).length} членове</span>
-      </a>
-    </li>`).join('');
+  list.innerHTML = groups.slice(0, 5).map(g =>
+    '<li><a href="/groups" class="group-mini-item">' +
+    '<div class="group-mini-emoji">' + escHtml(g.emoji || '🎉') + '</div>' +
+    '<span class="group-mini-name">' + escHtml(g.name) + '</span>' +
+    '<span class="group-mini-count">' + (g.members || []).length + ' членове</span>' +
+    '</a></li>'
+  ).join('');
 }
 
 function cycleEmoji() {
@@ -318,7 +390,7 @@ function addInviteTag() {
   inviteTags.push(email);
   const tag = document.createElement('span');
   tag.className = 'invite-tag';
-  tag.innerHTML = `${escHtml(email)}<button onclick="removeInviteTag('${escHtml(email)}', this)">×</button>`;
+  tag.innerHTML = escHtml(email) + '<button onclick="removeInviteTag(\'' + escHtml(email) + '\', this)">×</button>';
   document.getElementById('inviteTagsWrap').insertBefore(tag, input);
   input.value = '';
 }
@@ -343,7 +415,7 @@ function fmtTime(date) {
 }
 
 function fmtTime24(date) {
-  return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+  return String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
 }
 
 function escHtml(str) {

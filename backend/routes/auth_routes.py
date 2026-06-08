@@ -20,9 +20,10 @@ def callback():
     tokens = exchange_code_for_tokens(code)
     user_info = get_user_info(tokens["access_token"])
     user_id = save_user_to_firestore(user_info, tokens)
-    session["user_id"] = user_id
-    session["user_name"] = user_info["name"]
-    session["access_token"] = tokens["access_token"]
+    session["user_id"]       = user_id
+    session["user_name"]     = user_info["name"]
+    session["user_email"]    = user_info["email"]
+    session["access_token"]  = tokens["access_token"]
     return redirect("/dashboard")
 
 @auth_bp.route("/logout")
@@ -36,5 +37,6 @@ def me():
         return jsonify({"error": "Не си влязъл"}), 401
     return jsonify({
         "user_id": session["user_id"],
-        "name": session["user_name"],
+        "name":    session["user_name"],
+        "email":   session.get("user_email", ""),
     })

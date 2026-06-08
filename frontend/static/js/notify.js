@@ -1,7 +1,5 @@
 // notify.js
 
-let unsubscribeNotifications = null;
-
 /* ══════════════════════════════════════
    ИЗВЕСТИЯ
    ══════════════════════════════════════ */
@@ -9,11 +7,10 @@ let unsubscribeNotifications = null;
 async function loadNotifications() {
   const list      = document.getElementById('notifList');
   const listModal = document.getElementById('notifListModal');
-  const badge     = document.getElementById('navBadge');
 
   try {
-    const res  = await fetch('/notify/my');
-    const data = await res.json();
+    const res    = await fetch('/notify/my');
+    const data   = await res.json();
     const notifs = data.notifications || [];
 
     updateBadge(notifs.length);
@@ -45,8 +42,9 @@ function renderNotifications(notifs, list) {
 
 async function markRead(notifId) {
   try {
-    await fetch(`/notify/${notifId}/read`, { method: 'POST' });
-    loadNotifications();
+    await fetch('/notify/' + notifId + '/read', { method: 'POST' });
+    // Презареди известията след маркиране
+    await loadNotifications();
   } catch (err) {
     console.error('markRead:', err);
   }
@@ -60,9 +58,12 @@ async function markAllNotificationsRead() {
     const onclick = item.getAttribute('onclick');
     if (onclick) {
       const id = onclick.match(/'([^']+)'/)?.[1];
-      if (id) await markRead(id);
+      if (id) {
+        await fetch('/notify/' + id + '/read', { method: 'POST' });
+      }
     }
   }
+  await loadNotifications();
   showToast('Всички известия са маркирани като прочетени.', 'success');
 }
 
@@ -82,13 +83,13 @@ function updateBadge(count) {
    ══════════════════════════════════════ */
 
 async function loadInvites() {
-  const list = document.getElementById('invitesList');
+  const list    = document.getElementById('invitesList');
   const section = document.getElementById('invitesSection');
   if (!list) return;
 
   try {
-    const res  = await fetch('/group/invites');
-    const data = await res.json();
+    const res     = await fetch('/group/invites');
+    const data    = await res.json();
     const invites = data.invites || [];
 
     if (!invites.length) {
@@ -96,7 +97,10 @@ async function loadInvites() {
       return;
     }
 
-    if (section) section.style.display = 'block';
+    if (section) {
+      section.style.display    = 'block';
+      section.style.gridColumn = '1 / -1';
+    }
 
     list.innerHTML = invites.map(inv => `
       <li class="invite-item">
@@ -113,7 +117,7 @@ async function loadInvites() {
 
 async function acceptInvite(inviteId) {
   try {
-    const res = await fetch(`/group/invite/${inviteId}/accept`, { method: 'POST' });
+    const res  = await fetch('/group/invite/' + inviteId + '/accept', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Грешка');
     showToast('Поканата е приета! Вече си в групата.', 'success');
@@ -130,8 +134,8 @@ async function acceptInvite(inviteId) {
 function relativeTime(date) {
   const diff = (Date.now() - date) / 1000;
   if (diff < 60)    return 'Току що';
-  if (diff < 3600)  return `преди ${Math.floor(diff / 60)} мин`;
-  if (diff < 86400) return `преди ${Math.floor(diff / 3600)} ч`;
+  if (diff < 3600)  return 'преди ' + Math.floor(diff / 60) + ' мин';
+  if (diff < 86400) return 'преди ' + Math.floor(diff / 3600) + ' ч';
   return date.toLocaleDateString('bg-BG', { day: 'numeric', month: 'short' });
 }
 
@@ -146,7 +150,6 @@ function escHtml(str) {
 document.addEventListener('DOMContentLoaded', () => {
   loadNotifications();
   loadInvites();
-  // Опресни на всеки 30 секунди
   setInterval(() => {
     loadNotifications();
     loadInvites();

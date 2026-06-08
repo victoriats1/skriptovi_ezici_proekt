@@ -126,7 +126,15 @@ function renderEventsList(events) {
     return;
   }
 
-  list.innerHTML = events.slice(0, 8).map(evt => {
+  // Премахни дублиращи се събития по id
+  const seen = new Set();
+  const unique = events.filter(evt => {
+    if (seen.has(evt.id)) return false;
+    seen.add(evt.id);
+    return true;
+  });
+
+  list.innerHTML = unique.slice(0, 8).map(evt => {
     const date    = new Date(evt.start);
     const timeStr = date.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
     const dayStr  = date.toLocaleDateString('bg-BG', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -244,7 +252,6 @@ async function addEvent() {
       })
     });
 
-    // Провери дали отговорът е JSON преди да го парсва
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       throw new Error('Запазването не е готово от backend-а.');
@@ -255,7 +262,9 @@ async function addEvent() {
 
     closeModal('addEventModal');
     showToast('Събитието е запазено!', 'success');
-    loadEvents();
+
+    // Изчакай 1.5 секунди преди презареждане за да избегнем дублиране
+    setTimeout(() => loadEvents(), 1500);
   } catch (err) {
     showToast(err.message, 'error');
   }
