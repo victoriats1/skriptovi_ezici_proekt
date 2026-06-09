@@ -16,14 +16,15 @@ def login():
 def callback():
     code = request.args.get("code")
     if not code:
-        return jsonify({"error": "Няма код от Google"}), 400
-    tokens = exchange_code_for_tokens(code)
+        return jsonify({"error": "Nqma kod ot Google"}), 400
+    tokens    = exchange_code_for_tokens(code)
     user_info = get_user_info(tokens["access_token"])
-    user_id = save_user_to_firestore(user_info, tokens)
+    user_id   = save_user_to_firestore(user_info, tokens)
     session["user_id"]       = user_id
     session["user_name"]     = user_info["name"]
     session["user_email"]    = user_info["email"]
     session["access_token"]  = tokens["access_token"]
+    session["refresh_token"] = tokens.get("refresh_token", "")
     return redirect("/dashboard")
 
 @auth_bp.route("/logout")
@@ -34,7 +35,7 @@ def logout():
 @auth_bp.route("/me")
 def me():
     if "user_id" not in session:
-        return jsonify({"error": "Не си влязъл"}), 401
+        return jsonify({"error": "Ne si vlyal"}), 401
     return jsonify({
         "user_id": session["user_id"],
         "name":    session["user_name"],

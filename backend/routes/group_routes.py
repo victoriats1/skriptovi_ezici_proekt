@@ -1,6 +1,6 @@
 ﻿from flask import Blueprint, jsonify, session, request
 from backend.firebase_config import get_db
-from backend.calendar import get_busy_intervals
+from backend.calendar import get_busy_intervals, create_event
 from backend.free_slots import find_free_slots, format_free_slots
 
 group_bp = Blueprint("group", __name__, url_prefix="/group")
@@ -206,15 +206,46 @@ def create_hangout():
     if not group_id or not title or not start:
         return jsonify({"error": "Lipvat zadaljitelni poleta"}), 400
 
+    # Запази срещата в Firestore
     db.collection("hangouts").add({
-        "group_id":  group_id,
-        "title":     title,
-        "start":     start,
-        "end":       end,
-        "location":  location,
-        "notes":     notes,
+        "group_id":   group_id,
+        "title":      title,
+        "start":      start,
+        "end":        end,
+        "location":   location,
+        "notes":      notes,
         "created_by": user_id,
     })
+
+    # Добави събитието в Google Calendar на всички членове
+    group = db.collection("groups").document(group_id).get()
+    if group.exists:
+        group_data = group.to_dict()
+        members    = group_data.get("members", [])
+
+        event_notes = notes + (" | Място: " + location if location else "")
+
+        for member_id in members:
+            # Пропусни създателя — той вече го добавя от frontend-а
+            if member_id == user_id:
+                continue
+            member = db.collection("users").document(member_id).get()
+            if member.exists:
+                member_data   = member.to_dict()
+                access_token  = member_data.get("access_token")
+                refresh_token = member_data.get("refresh_token", "")
+                if access_token:
+                    try:
+                        create_event(
+                            access_token,
+                            title,
+                            start,
+                            end,
+                            event_notes,
+                            refresh_token
+                        )
+                    except Exception as e:
+                        print("Greshka pri dobaviane v kalendara na " + member_id + ": " + str(e))
 
     return jsonify({"status": "ok"})
 
@@ -241,10 +272,12 @@ def group_free_slots():
     for member_id in group_data["members"]:
         member = db.collection("users").document(member_id).get()
         if member.exists:
-            token = member.to_dict().get("access_token")
+            member_data   = member.to_dict()
+            token         = member_data.get("access_token")
+            refresh_token = member_data.get("refresh_token", "")
             if token:
                 try:
-                    busy = get_busy_intervals(token, days_ahead=7)
+                    busy = get_busy_intervals(token, days_ahead=7, refresh_token=refresh_token)
                     busy_list.append(busy)
                 except Exception:
                     busy_list.append([])
